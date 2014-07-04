@@ -24,6 +24,7 @@ use common_persistence_KvDriver;
 use common_persistence_KeyValuePersistence;
 use common_Logger;
 use common_Exception;
+use Aws\DynamoDb\DynamoDbClient;
 
 /**
  * A driver for Amazon DynamoDB
@@ -34,6 +35,7 @@ class DynamoDbDriver implements common_persistence_KvDriver
 {
 
     private $client;
+    private $tableName;
 
     /**
      * (non-PHPdoc)
@@ -42,8 +44,15 @@ class DynamoDbDriver implements common_persistence_KvDriver
      */
     function connect($key, array $params)
     {
+        $this->client = DynamoDbClient::factory(array(
+                    'key' => $params['key'],
+                    'secret' => $params['secret'],
+                    'region' => $params['region']//,
+                    //'validation' => false,
+                    //'credentials.cache' => true
+        ));
+        $this->tableName = $params['table'];
         common_Logger::i('connect');
-        
         return new common_persistence_KeyValuePersistence($params, $this);
     }
 
@@ -53,8 +62,16 @@ class DynamoDbDriver implements common_persistence_KvDriver
      */
     public function set($key, $value, $ttl = null)
     {
+        $result = $this->client->putItem(array(
+            'TableName' => $this->tableName,
+            'Item' => $client->formatAttributes(array(
+                'key' => $key,
+                'value' => $value
+            )),
+            'ReturnConsumedCapacity' => 'TOTAL'
+        ));
         common_Logger::i('SET: ' . $key);
-        return false;
+        return (int)($result->getPath('ConsumedCapacity/CapacityUnits') > 0);
     }
 
     /**
@@ -63,8 +80,15 @@ class DynamoDbDriver implements common_persistence_KvDriver
      */
     public function get($key)
     {
+        $result = $this->client->getItem(array(
+            'ConsistentRead' => true,
+            'TableName' => $this->tableName,
+            'Key' => array(
+                'key' => array('S' => $key)
+            )
+        ));
         common_Logger::i('GET: ' . $key);
-        return false;
+        return $result['Item']['value']['S'];
     }
 
     /**
@@ -73,8 +97,15 @@ class DynamoDbDriver implements common_persistence_KvDriver
      */
     public function exists($key)
     {
+        $result = $this->client->getItem(array(
+            'ConsistentRead' => true,
+            'TableName' => $this->tableName,
+            'Key' => array(
+                'key' => array('S' => $key)
+            )
+        ));
         common_Logger::i('EXISTS: ' . $key);
-        return false;
+        return (bool)(count($result) > 0);
     }
 
     /**
@@ -83,7 +114,13 @@ class DynamoDbDriver implements common_persistence_KvDriver
      */
     public function del($key)
     {
+        $this->client->deleteItem(array(
+            'TableName' => $this->tableName,
+            'Key' => array(
+                'key' => array('S' => $key)
+            )
+        ));
         common_Logger::i('DEL: ' . $key);
-        return false;
+        return true; // to return ReturnConsumedCapacity by ConsumedCapacity
     }
 }
