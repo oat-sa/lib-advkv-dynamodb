@@ -64,10 +64,10 @@ class DynamoDbDriver implements common_persistence_KvDriver
     {
         $result = $this->client->putItem(array(
             'TableName' => $this->tableName,
-            'Item' => $client->formatAttributes(array(
-                'key' => $key,
-                'value' => $value
-            )),
+            'Item' => array(
+                'key' => array('S' => $key),
+                'value' => array('B' => $value)
+            ),
             'ReturnConsumedCapacity' => 'TOTAL'
         ));
         common_Logger::i('SET: ' . $key);
@@ -88,7 +88,11 @@ class DynamoDbDriver implements common_persistence_KvDriver
             )
         ));
         common_Logger::i('GET: ' . $key);
-        return $result['Item']['value']['S'];
+        if (!isset($result['Item']['value']['B'])) {
+            return false;
+        } else {
+            return $result['Item']['value']['B'];
+        }
     }
 
     /**
