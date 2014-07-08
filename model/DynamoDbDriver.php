@@ -91,7 +91,7 @@ class DynamoDbDriver implements common_persistence_KvDriver
         if (!isset($result['Item']['value']['B'])) {
             return false;
         } else {
-            return $result['Item']['value']['B'];
+            return base64_decode($result['Item']['value']['B']);
         }
     }
 
