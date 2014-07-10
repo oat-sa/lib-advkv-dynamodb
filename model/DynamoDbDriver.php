@@ -127,4 +127,98 @@ class DynamoDbDriver implements common_persistence_KvDriver
         common_Logger::i('DEL: ' . $key);
         return true; // to return ReturnConsumedCapacity by ConsumedCapacity
     }
+    
+    public function hmSet($key, $fields) {
+        $attributesToUpdate = array();
+
+        foreach ($fields as $hashkey=>$val) {
+            $attributesToUpdate[$hashkey] = array (
+                'Action' => 'PUT',
+                'Value' => array('B' => $val)
+            );
+        }
+
+        if (count($attributesToUpdate) > 0) {
+            $result = $this->client->updateItem(array(
+                'TableName' => $this->tableName,
+                'Key' => array(
+                    'key' => array('S' => $key)
+                ),
+                'AttributeUpdates' => $attributesToUpdate,
+                'ReturnValues' => 'UPDATED_OLD'
+            ));
+        }
+        return 'OK';
+    }
+    
+    public function hExists($key, $field) {
+        $result = $this->client->getItem(array(
+            'TableName' => $this->tableName,
+            'Key' => array (
+                'key' => array('S' => $key)
+            ),
+            'ConsistentRead' => true,
+            'AttributesToGet' => array( $field )
+        ));
+        return isset($result['Item'][$field]);
+    }
+
+    public function hGetAll($key) {
+        $result = $this->client->getItem(array(
+            'TableName' => $this->tableName,
+            'Key' => array (
+                'key' => array('S' => $key)
+            ),
+            'ConsistentRead' => true
+        ));
+        if ( isset($result['Item']) ) {
+            $returnArray = $result['Item'];
+            unset($result);
+            unset($returnArray['key']);
+            foreach ($returnArray as $key=>$val) {
+                $returnArray[$key] = base64_decode($val['B']);
+            }
+            return $returnArray;
+        } else {
+            return array();
+        }
+    }
+    
+    public function hGet($key, $field) {
+        $result = $this->client->getItem(array(
+            'TableName' => $this->tableName,
+            'Key' => array (
+                'key' => array('S' => $key)
+            ),
+            'ConsistentRead' => true,
+            'AttributesToGet' => array( $field )
+        ));
+        return base64_decode($result['Item'][$field]['B']);
+    }
+    
+    public function hSet($key, $field, $value) {
+        $result = $this->client->updateItem(array(
+            'TableName' => $this->tableName,
+            'Key' => array(
+                'key' => array('S' => $key)
+            ),
+            'AttributeUpdates' => array(
+                $field => array(
+                    'Action' => 'PUT',
+                    'Value' => array('B' => $value)
+                )
+            ),
+            'ReturnValues' => 'UPDATED_OLD'
+        ));
+        return (int)!isset($result['Attributes'][$field]);
+    }
+    
+    public function keys($pattern) {
+        throw new Exception('The keys($pattern) method is not implemented yet!');
+    }
+    
+    public function incr($key) {
+        throw new Exception('The incr($key) method is not implemented yet!');
+    }
+
 }
