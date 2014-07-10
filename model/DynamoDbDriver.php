@@ -128,6 +128,27 @@ class DynamoDbDriver implements common_persistence_KvDriver
         return true; // to return ReturnConsumedCapacity by ConsumedCapacity
     }
     
+    public function incr($key) {
+        try {
+            $result = $this->client->updateItem(array(
+                'TableName' => $this->tableName,
+                'Key' => array(
+                    'key' => array('S' => $key)
+                ),
+                'AttributeUpdates' => array(
+                    'value' => array(
+                        'Action' => 'ADD',
+                        'Value' => array('N' => 1)
+                    )
+                ),
+                'ReturnValues' => 'UPDATED_NEW'
+            ));
+            return $result['Attributes']['value']['N'];
+        } catch (Exception $ex) {
+            return false;
+        }
+    }
+    
     public function hmSet($key, $fields) {
         $attributesToUpdate = array();
 
@@ -148,7 +169,7 @@ class DynamoDbDriver implements common_persistence_KvDriver
                 'ReturnValues' => 'UPDATED_OLD'
             ));
         }
-        return 'OK';
+        return true;
     }
     
     public function hExists($key, $field) {
@@ -215,10 +236,6 @@ class DynamoDbDriver implements common_persistence_KvDriver
     
     public function keys($pattern) {
         throw new Exception('The keys($pattern) method is not implemented yet!');
-    }
-    
-    public function incr($key) {
-        throw new Exception('The incr($key) method is not implemented yet!');
     }
 
 }
