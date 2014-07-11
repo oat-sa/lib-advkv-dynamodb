@@ -20,8 +20,10 @@
  */
 namespace oat\kvDynamoDb\model;
 
-use common_persistence_KvDriver;
-use common_persistence_KeyValuePersistence;
+//use common_persistence_KvDriver;
+use common_persistence_AdvKvDriver;
+//use common_persistence_KeyValuePersistence;
+use common_persistence_AdvKeyValuePersistence;
 use common_Logger;
 use common_Exception;
 use Aws\DynamoDb\DynamoDbClient;
@@ -31,11 +33,13 @@ use Aws\DynamoDb\DynamoDbClient;
  *
  * @author Joel Bout <joel@taotesting.com>
  */
-class DynamoDbDriver implements common_persistence_KvDriver
+//class DynamoDbDriver implements common_persistence_KvDriver
+class DynamoDbDriver implements common_persistence_AdvKvDriver
 {
 
     private $client;
     private $tableName;
+    private $hPrefix = 'hPrfx_';
 
     /**
      * (non-PHPdoc)
@@ -53,7 +57,8 @@ class DynamoDbDriver implements common_persistence_KvDriver
         ));
         $this->tableName = $params['table'];
         common_Logger::i('connect');
-        return new common_persistence_KeyValuePersistence($params, $this);
+        //return new common_persistence_KeyValuePersistence($params, $this);
+        return new common_persistence_AdvKeyValuePersistence($params, $this);
     }
 
     /**
@@ -221,8 +226,13 @@ class DynamoDbDriver implements common_persistence_KvDriver
             $returnArray = $result['Item'];
             unset($result);
             unset($returnArray['key']); //remove the KEY from the resutlset
-            foreach ($returnArray as $key=>$val) {
-                $returnArray[$key] = base64_decode($val['B']);
+            $prefixLength = strlen($this->hPrefix);
+            foreach ($returnArray as $fakey=>$val) {
+                if (mb_substr($fakey, 0, $prefixLength) === $this->hPrefix) {
+                    $returnArray[$fakey] = base64_decode($val['B']);
+                } else {
+                    unset($returnArray[$fakey]);
+                }
             }
             return $returnArray;
         } else {
@@ -257,20 +267,28 @@ class DynamoDbDriver implements common_persistence_KvDriver
      * @return integer Returns 1 if field is a new field in the hash and value was set, 0 if field already exists in the hash and the value was updated
      */
     public function hSet($key, $field, $value) {
-        $result = $this->client->updateItem(array(
-            'TableName' => $this->tableName,
-            'Key' => array(
-                'key' => array('S' => $key)
-            ),
-            'AttributeUpdates' => array(
-                $field => array(
-                    'Action' => 'PUT',
-                    'Value' => array('B' => $value)
-                )
-            ),
-            'ReturnValues' => 'UPDATED_OLD'
-        ));
-        return (int)!isset($result['Attributes'][$field]);
+        if ( !($key!=='') || !($field!=='') ) {
+            return false;
+        }
+        try {
+            $result = $this->client->updateItem(array(
+                'TableName' => $this->tableName,
+                'Key' => array(
+                    'key' => array('S' => $key)
+                ),
+                'AttributeUpdates' => array(
+                    $this->hPrefix.$field => array(
+                        'Action' => 'PUT',
+                        'Value' => array('B' => $value)
+                    )
+                )//,
+                //'ReturnValues' => 'UPDATED_OLD'
+            ));
+            return true;
+        } catch (Exception $ex) {
+            return false;
+        }
+        //return (int)!isset($result['Attributes'][$field]);
     }
     
     public function keys($pattern) {
