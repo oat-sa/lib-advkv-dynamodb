@@ -41,10 +41,6 @@ class DynamoDbDriverTestCase extends TaoPhpUnitTestRunner
         echo "\n";
         //$this->conn->set('qweqwe', 'ewqewq');
         //echo '['.$this->conn->get('qweqwe').']';
-        
-        //echo get_class($this->conn);
-        //print_r( get_class_methods(get_class($this->conn)) );
-        
         //echo (int)$this->conn->hSet('tc1', 'ct1', 'tctctc');
         //echo (int)$this->conn->hSet('', 'ct2', 'tc2tc2tc2');
         //echo $this->conn->hGet('tc1', 'ct1');
@@ -59,10 +55,6 @@ class DynamoDbDriverTestCase extends TaoPhpUnitTestRunner
         
         $this->conn->hmSet('prepo1', array('dve'=>'dvaise', 'tri'=>'triise'));
         print_r( $this->conn->hGetAll('prepo1') );
-        
-        //echo (int)$this->conn->set('cici', 'caci');
-        //echo $this->conn->get('cici');
-        
         
     }
     
