@@ -67,11 +67,16 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
      */
     public function set($key, $value, $ttl = null)
     {
-        $result = $this->client->putItem(array(
+        $result = $this->client->updateItem(array(
             'TableName' => $this->tableName,
-            'Item' => array(
-                'key' => array('S' => $key),
-                'value' => array('B' => $value)
+            'Key' => array(
+                'key' => array('S' => $key)
+            ),
+            'AttributeUpdates' => array(
+                'value' => array(
+                    'Action' => 'PUT',
+                    'Value' => array('B' => $value)
+                )
             ),
             'ReturnConsumedCapacity' => 'TOTAL'
         ));
@@ -172,7 +177,7 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
         $attributesToUpdate = array();
 
         foreach ($fields as $hashkey=>$val) {
-            $attributesToUpdate[$hashkey] = array (
+            $attributesToUpdate[$this->hPrefix.$hashkey] = array (
                 'Action' => 'PUT',
                 'Value' => array('B' => $val)
             );
@@ -204,9 +209,9 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
                 'key' => array('S' => $key)
             ),
             'ConsistentRead' => true,
-            'AttributesToGet' => array( $field )
+            'AttributesToGet' => array( $this->hPrefix.$field )
         ));
-        return isset($result['Item'][$field]);
+        return isset($result['Item'][$this->hPrefix.$field]);
     }
 
     /**
@@ -223,15 +228,17 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
             'ConsistentRead' => true
         ));
         if ( isset($result['Item']) ) {
-            $returnArray = $result['Item'];
+            $tempArray = $result['Item'];
             unset($result);
-            unset($returnArray['key']); //remove the KEY from the resutlset
+            unset($tempArray['key']); //remove the KEY from the resutlset
             $prefixLength = strlen($this->hPrefix);
-            foreach ($returnArray as $fakey=>$val) {
-                if (mb_substr($fakey, 0, $prefixLength) === $this->hPrefix) {
-                    $returnArray[$fakey] = base64_decode($val['B']);
+            $returnArray = array();
+            foreach ($tempArray as $taKey=>$val) {
+                if (mb_substr($taKey, 0, $prefixLength) === $this->hPrefix) {
+                    $returnArray[ mb_substr($taKey, $prefixLength) ] = base64_decode($val['B']);
+                    unset($tempArray[$taKey]); // unset data as soon as we don't need it so we could free memory
                 } else {
-                    unset($returnArray[$fakey]);
+                    unset($tempArray[$taKey]);
                 }
             }
             return $returnArray;
@@ -253,9 +260,9 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
                 'key' => array('S' => $key)
             ),
             'ConsistentRead' => true,
-            'AttributesToGet' => array( $field )
+            'AttributesToGet' => array( $this->hPrefix.$field )
         ));
-        return base64_decode($result['Item'][$field]['B']);
+        return base64_decode($result['Item'][$this->hPrefix.$field]['B']);
     }
     
     /**
