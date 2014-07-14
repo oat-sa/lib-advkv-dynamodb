@@ -176,6 +176,9 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
     public function hmSet($key, $fields) {
         $attributesToUpdate = array();
 
+        if (!is_array($fields)) {
+            return false;
+        }
         foreach ($fields as $hashkey=>$val) {
             $attributesToUpdate[$this->hPrefix.$hashkey] = array (
                 'Action' => 'PUT',
