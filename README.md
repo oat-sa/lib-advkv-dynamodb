@@ -6,7 +6,7 @@ Key Value Persistence implemtation for dynamoDB, requires Generis 2.7
 
 Code used to generate table
 ===========================
-
+```php
 $client->createTable(array(
   'AttributeDefinitions' => array(
     array(
@@ -26,11 +26,11 @@ $client->createTable(array(
   ) ,
   'TableName' => "taoKeyValueStorage"
 )); 
-
+```
 
 Persistence
 ===========
-
+```php
 'serviceState' => array(
     'driver' => 'oat\kvDynamoDb\model\DynamoDbDriver',
     'key' => '***',
@@ -38,3 +38,4 @@ Persistence
     'region' => 'eu-west-1',
     'table' => 'taoKeyValueStorage'
 ),
+```
