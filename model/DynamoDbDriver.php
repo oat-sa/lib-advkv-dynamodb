@@ -103,7 +103,7 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
         } elseif ( isset($result['Item'][SIMPLE_VALUE_NAME]['N']) ) {
              return (int)$result['Item'][SIMPLE_VALUE_NAME]['N'];
         } else {
-            return NULL;
+            return false;
         }
     }
 
