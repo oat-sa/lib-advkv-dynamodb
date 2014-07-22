@@ -334,10 +334,12 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
                 )
             )
         ));
-       
+        
+        $keysArray = array();
         foreach ($iterator as $item) {
-            echo $item[SIMPLE_KEY_NAME]['S']."\n";
+            $keysArray[] = $item[SIMPLE_KEY_NAME]['S'];
         }
+        return $keysArray;
     }
 
 }
