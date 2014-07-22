@@ -39,7 +39,8 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
 
     private $client;
     private $tableName;
-    private $hPrefix = 'hPrfx_';
+    const HPREFIX = 'hPrfx_', SIMPLE_KEY_NAME = 'key', SIMPLE_VALUE_NAME = 'value';
+    
 
     /**
      * (non-PHPdoc)
@@ -57,7 +58,6 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
         ));
         $this->tableName = $params['table'];
         common_Logger::i('connect');
-        //return new common_persistence_KeyValuePersistence($params, $this);
         return new common_persistence_AdvKeyValuePersistence($params, $this);
     }
 
@@ -70,10 +70,10 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
         $result = $this->client->updateItem(array(
             'TableName' => $this->tableName,
             'Key' => array(
-                'key' => array('S' => $key)
+                SIMPLE_KEY_NAME => array('S' => $key)
             ),
             'AttributeUpdates' => array(
-                'value' => array(
+                SIMPLE_VALUE_NAME => array(
                     'Action' => 'PUT',
                     'Value' => array('B' => $value)
                 )
@@ -81,7 +81,7 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
             'ReturnConsumedCapacity' => 'TOTAL'
         ));
         common_Logger::i('SET: ' . $key);
-        return (int)($result->getPath('ConsumedCapacity/CapacityUnits') > 0);
+        return (bool)($result->getPath('ConsumedCapacity/CapacityUnits') > 0);
     }
 
     /**
@@ -94,14 +94,16 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
             'ConsistentRead' => true,
             'TableName' => $this->tableName,
             'Key' => array(
-                'key' => array('S' => $key)
+                SIMPLE_KEY_NAME => array('S' => $key)
             )
         ));
         common_Logger::i('GET: ' . $key);
-        if (!isset($result['Item']['value']['B'])) {
-            return false;
+        if ( isset($result['Item'][SIMPLE_VALUE_NAME]['B']) ) {
+            return base64_decode($result['Item'][SIMPLE_VALUE_NAME]['B']);
+        } elseif ( isset($result['Item'][SIMPLE_VALUE_NAME]['N']) ) {
+             return (int)$result['Item'][SIMPLE_VALUE_NAME]['N'];
         } else {
-            return base64_decode($result['Item']['value']['B']);
+            return false;
         }
     }
 
@@ -115,7 +117,7 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
             'ConsistentRead' => true,
             'TableName' => $this->tableName,
             'Key' => array(
-                'key' => array('S' => $key)
+                SIMPLE_KEY_NAME => array('S' => $key)
             )
         ));
         common_Logger::i('EXISTS: ' . $key);
@@ -128,14 +130,18 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
      */
     public function del($key)
     {
-        $this->client->deleteItem(array(
-            'TableName' => $this->tableName,
-            'Key' => array(
-                'key' => array('S' => $key)
-            )
-        ));
-        common_Logger::i('DEL: ' . $key);
-        return true; // to return ReturnConsumedCapacity by ConsumedCapacity
+        try {
+            $this->client->deleteItem(array(
+                'TableName' => $this->tableName,
+                'Key' => array(
+                    SIMPLE_KEY_NAME => array('S' => $key)
+                )
+            ));
+            common_Logger::i('DEL: ' . $key);
+        } catch (Exception $ex) {
+            return false;
+        }
+        return true;
     }
     
     /**
@@ -148,17 +154,17 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
             $result = $this->client->updateItem(array(
                 'TableName' => $this->tableName,
                 'Key' => array(
-                    'key' => array('S' => $key)
+                    SIMPLE_KEY_NAME => array('S' => $key)
                 ),
                 'AttributeUpdates' => array(
-                    'value' => array(
+                    SIMPLE_VALUE_NAME => array(
                         'Action' => 'ADD',
                         'Value' => array('N' => 1)
                     )
                 ),
                 'ReturnValues' => 'UPDATED_NEW'
             ));
-            return $result['Attributes']['value']['N'];
+            return (int)$result['Attributes'][SIMPLE_VALUE_NAME]['N'];
         } catch (Exception $ex) {
             return false;
         }
@@ -180,7 +186,7 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
             return false;
         }
         foreach ($fields as $hashkey=>$val) {
-            $attributesToUpdate[$this->hPrefix.$hashkey] = array (
+            $attributesToUpdate[self::HPREFIX.$hashkey] = array (
                 'Action' => 'PUT',
                 'Value' => array('B' => $val)
             );
@@ -190,7 +196,7 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
             $result = $this->client->updateItem(array(
                 'TableName' => $this->tableName,
                 'Key' => array(
-                    'key' => array('S' => $key)
+                    SIMPLE_KEY_NAME => array('S' => $key)
                 ),
                 'AttributeUpdates' => $attributesToUpdate,
                 'ReturnValues' => 'UPDATED_OLD'
@@ -209,12 +215,12 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
         $result = $this->client->getItem(array(
             'TableName' => $this->tableName,
             'Key' => array (
-                'key' => array('S' => $key)
+                SIMPLE_KEY_NAME => array('S' => $key)
             ),
             'ConsistentRead' => true,
-            'AttributesToGet' => array( $this->hPrefix.$field )
+            'AttributesToGet' => array( self::HPREFIX.$field )
         ));
-        return isset($result['Item'][$this->hPrefix.$field]);
+        return isset($result['Item'][self::HPREFIX.$field]);
     }
 
     /**
@@ -226,18 +232,18 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
         $result = $this->client->getItem(array(
             'TableName' => $this->tableName,
             'Key' => array (
-                'key' => array('S' => $key)
+                SIMPLE_KEY_NAME => array('S' => $key)
             ),
             'ConsistentRead' => true
         ));
         if ( isset($result['Item']) ) {
             $tempArray = $result['Item'];
             unset($result);
-            unset($tempArray['key']); //remove the KEY from the resutlset
-            $prefixLength = strlen($this->hPrefix);
+            unset($tempArray[SIMPLE_KEY_NAME]); //remove the KEY from the resutlset
+            $prefixLength = strlen(self::HPREFIX);
             $returnArray = array();
             foreach ($tempArray as $taKey=>$val) {
-                if (mb_substr($taKey, 0, $prefixLength) === $this->hPrefix) {
+                if (mb_substr($taKey, 0, $prefixLength) === self::HPREFIX) {
                     $returnArray[ mb_substr($taKey, $prefixLength) ] = base64_decode($val['B']);
                     unset($tempArray[$taKey]); // unset data as soon as we don't need it so we could free memory
                 } else {
@@ -260,12 +266,12 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
         $result = $this->client->getItem(array(
             'TableName' => $this->tableName,
             'Key' => array (
-                'key' => array('S' => $key)
+                SIMPLE_KEY_NAME => array('S' => $key)
             ),
             'ConsistentRead' => true,
-            'AttributesToGet' => array( $this->hPrefix.$field )
+            'AttributesToGet' => array( self::HPREFIX.$field )
         ));
-        return base64_decode($result['Item'][$this->hPrefix.$field]['B']);
+        return base64_decode($result['Item'][self::HPREFIX.$field]['B']);
     }
     
     /**
@@ -284,25 +290,54 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
             $result = $this->client->updateItem(array(
                 'TableName' => $this->tableName,
                 'Key' => array(
-                    'key' => array('S' => $key)
+                    SIMPLE_KEY_NAME => array('S' => $key)
                 ),
                 'AttributeUpdates' => array(
-                    $this->hPrefix.$field => array(
+                    self::HPREFIX.$field => array(
                         'Action' => 'PUT',
                         'Value' => array('B' => $value)
                     )
-                )//,
-                //'ReturnValues' => 'UPDATED_OLD'
+                )
             ));
             return true;
         } catch (Exception $ex) {
             return false;
         }
-        //return (int)!isset($result['Attributes'][$field]);
     }
     
+    /**
+     * Returns all keys that match the pattern given in $pattern. If an asterisk is used it returns all keys that start with the string that precede the asterisk.<br />
+     * If an asterisk is not used then it returns all keys containing the $pattern.
+     * @param string $pattern
+     * @return array An array containing all matched keys
+     */
     public function keys($pattern) {
-        throw new Exception('The keys($pattern) method is not implemented yet!');
+        $astPos = mb_strpos($pattern, '*');
+        if ( $astPos !== false && $astPos > 0 ) {
+            $comparisonOpearator = 'BEGINS_WITH';
+            $comparisonValue = mb_substr($pattern, 0, $astPos);
+        } else {
+            $comparisonOpearator = 'CONTAINS';
+            $comparisonValue = $pattern;
+        }
+        
+        $iterator = $this->client->getIterator('Scan', array(
+            'TableName' => $this->tableName,
+            'AttributesToGet' => array(SIMPLE_KEY_NAME),
+            'ReturnConsumedCapacity' => 'TOTAL',
+            'ScanFilter' => array(
+                SIMPLE_KEY_NAME => array(
+                    'AttributeValueList' => array(
+                        array('S' => $comparisonValue)
+                    ),
+                    'ComparisonOperator' => $comparisonOpearator
+                )
+            )
+        ));
+       
+        foreach ($iterator as $item) {
+            echo $item[SIMPLE_KEY_NAME]['S']."\n";
+        }
     }
 
 }
