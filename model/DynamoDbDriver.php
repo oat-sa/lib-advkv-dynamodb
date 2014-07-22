@@ -67,15 +67,20 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
      */
     public function set($key, $value, $ttl = null)
     {
+        if (gettype($value) === 'integer') {
+            $valueType = 'N';
+        } else {
+            $valueType = 'B';
+        }
         $result = $this->client->updateItem(array(
             'TableName' => $this->tableName,
             'Key' => array(
-                SIMPLE_KEY_NAME => array('S' => $key)
+                self::SIMPLE_KEY_NAME => array('S' => $key)
             ),
             'AttributeUpdates' => array(
-                SIMPLE_VALUE_NAME => array(
+                self::SIMPLE_VALUE_NAME => array(
                     'Action' => 'PUT',
-                    'Value' => array('B' => $value)
+                    'Value' => array($valueType => $value)
                 )
             ),
             'ReturnConsumedCapacity' => 'TOTAL'
@@ -94,14 +99,14 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
             'ConsistentRead' => true,
             'TableName' => $this->tableName,
             'Key' => array(
-                SIMPLE_KEY_NAME => array('S' => $key)
+                self::SIMPLE_KEY_NAME => array('S' => $key)
             )
         ));
         common_Logger::i('GET: ' . $key);
-        if ( isset($result['Item'][SIMPLE_VALUE_NAME]['B']) ) {
-            return base64_decode($result['Item'][SIMPLE_VALUE_NAME]['B']);
-        } elseif ( isset($result['Item'][SIMPLE_VALUE_NAME]['N']) ) {
-             return (int)$result['Item'][SIMPLE_VALUE_NAME]['N'];
+        if ( isset($result['Item'][self::SIMPLE_VALUE_NAME]['B']) ) {
+            return base64_decode($result['Item'][self::SIMPLE_VALUE_NAME]['B']);
+        } elseif ( isset($result['Item'][self::SIMPLE_VALUE_NAME]['N']) ) {
+             return (int)$result['Item'][self::SIMPLE_VALUE_NAME]['N'];
         } else {
             return false;
         }
@@ -117,7 +122,7 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
             'ConsistentRead' => true,
             'TableName' => $this->tableName,
             'Key' => array(
-                SIMPLE_KEY_NAME => array('S' => $key)
+                self::SIMPLE_KEY_NAME => array('S' => $key)
             )
         ));
         common_Logger::i('EXISTS: ' . $key);
@@ -134,7 +139,7 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
             $this->client->deleteItem(array(
                 'TableName' => $this->tableName,
                 'Key' => array(
-                    SIMPLE_KEY_NAME => array('S' => $key)
+                    self::SIMPLE_KEY_NAME => array('S' => $key)
                 )
             ));
             common_Logger::i('DEL: ' . $key);
@@ -150,24 +155,20 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
      * @return integer|bool Returns the value of the incremented key if the operation succeeds and FALSE if the operation fails
      */
     public function incr($key) {
-        try {
-            $result = $this->client->updateItem(array(
-                'TableName' => $this->tableName,
-                'Key' => array(
-                    SIMPLE_KEY_NAME => array('S' => $key)
-                ),
-                'AttributeUpdates' => array(
-                    SIMPLE_VALUE_NAME => array(
-                        'Action' => 'ADD',
-                        'Value' => array('N' => 1)
-                    )
-                ),
-                'ReturnValues' => 'UPDATED_NEW'
-            ));
-            return (int)$result['Attributes'][SIMPLE_VALUE_NAME]['N'];
-        } catch (Exception $ex) {
-            return false;
-        }
+        $result = $this->client->updateItem(array(
+            'TableName' => $this->tableName,
+            'Key' => array(
+                self::SIMPLE_KEY_NAME => array('S' => $key)
+            ),
+            'AttributeUpdates' => array(
+                self::SIMPLE_VALUE_NAME => array(
+                    'Action' => 'ADD',
+                    'Value' => array('N' => 1)
+                )
+            ),
+            'ReturnValues' => 'UPDATED_NEW'
+        ));
+        return (int)$result['Attributes'][self::SIMPLE_VALUE_NAME]['N'];
     }
     
     /**
@@ -196,7 +197,7 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
             $result = $this->client->updateItem(array(
                 'TableName' => $this->tableName,
                 'Key' => array(
-                    SIMPLE_KEY_NAME => array('S' => $key)
+                    self::SIMPLE_KEY_NAME => array('S' => $key)
                 ),
                 'AttributeUpdates' => $attributesToUpdate,
                 'ReturnValues' => 'UPDATED_OLD'
@@ -215,7 +216,7 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
         $result = $this->client->getItem(array(
             'TableName' => $this->tableName,
             'Key' => array (
-                SIMPLE_KEY_NAME => array('S' => $key)
+                self::SIMPLE_KEY_NAME => array('S' => $key)
             ),
             'ConsistentRead' => true,
             'AttributesToGet' => array( self::HPREFIX.$field )
@@ -232,14 +233,14 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
         $result = $this->client->getItem(array(
             'TableName' => $this->tableName,
             'Key' => array (
-                SIMPLE_KEY_NAME => array('S' => $key)
+                self::SIMPLE_KEY_NAME => array('S' => $key)
             ),
             'ConsistentRead' => true
         ));
         if ( isset($result['Item']) ) {
             $tempArray = $result['Item'];
             unset($result);
-            unset($tempArray[SIMPLE_KEY_NAME]); //remove the KEY from the resutlset
+            unset($tempArray[self::SIMPLE_KEY_NAME]); //remove the KEY from the resutlset
             $prefixLength = strlen(self::HPREFIX);
             $returnArray = array();
             foreach ($tempArray as $taKey=>$val) {
@@ -266,7 +267,7 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
         $result = $this->client->getItem(array(
             'TableName' => $this->tableName,
             'Key' => array (
-                SIMPLE_KEY_NAME => array('S' => $key)
+                self::SIMPLE_KEY_NAME => array('S' => $key)
             ),
             'ConsistentRead' => true,
             'AttributesToGet' => array( self::HPREFIX.$field )
@@ -290,7 +291,7 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
             $result = $this->client->updateItem(array(
                 'TableName' => $this->tableName,
                 'Key' => array(
-                    SIMPLE_KEY_NAME => array('S' => $key)
+                    self::SIMPLE_KEY_NAME => array('S' => $key)
                 ),
                 'AttributeUpdates' => array(
                     self::HPREFIX.$field => array(
@@ -323,10 +324,10 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
         
         $iterator = $this->client->getIterator('Scan', array(
             'TableName' => $this->tableName,
-            'AttributesToGet' => array(SIMPLE_KEY_NAME),
+            'AttributesToGet' => array(self::SIMPLE_KEY_NAME),
             'ReturnConsumedCapacity' => 'TOTAL',
             'ScanFilter' => array(
-                SIMPLE_KEY_NAME => array(
+                self::SIMPLE_KEY_NAME => array(
                     'AttributeValueList' => array(
                         array('S' => $comparisonValue)
                     ),
@@ -337,7 +338,7 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
         
         $keysArray = array();
         foreach ($iterator as $item) {
-            $keysArray[] = $item[SIMPLE_KEY_NAME]['S'];
+            $keysArray[] = $item[self::SIMPLE_KEY_NAME]['S'];
         }
         return $keysArray;
     }
