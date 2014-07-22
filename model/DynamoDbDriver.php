@@ -155,24 +155,20 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
      * @return integer|bool Returns the value of the incremented key if the operation succeeds and FALSE if the operation fails
      */
     public function incr($key) {
-        try {
-            $result = $this->client->updateItem(array(
-                'TableName' => $this->tableName,
-                'Key' => array(
-                    self::SIMPLE_KEY_NAME => array('S' => $key)
-                ),
-                'AttributeUpdates' => array(
-                    self::SIMPLE_VALUE_NAME => array(
-                        'Action' => 'ADD',
-                        'Value' => array('N' => 1)
-                    )
-                ),
-                'ReturnValues' => 'UPDATED_NEW'
-            ));
-            return (int)$result['Attributes'][self::SIMPLE_VALUE_NAME]['N'];
-        } catch (Exception $ex) {
-            return false;
-        }
+        $result = $this->client->updateItem(array(
+            'TableName' => $this->tableName,
+            'Key' => array(
+                self::SIMPLE_KEY_NAME => array('S' => $key)
+            ),
+            'AttributeUpdates' => array(
+                self::SIMPLE_VALUE_NAME => array(
+                    'Action' => 'ADD',
+                    'Value' => array('N' => 1)
+                )
+            ),
+            'ReturnValues' => 'UPDATED_NEW'
+        ));
+        return (int)$result['Attributes'][self::SIMPLE_VALUE_NAME]['N'];
     }
     
     /**
