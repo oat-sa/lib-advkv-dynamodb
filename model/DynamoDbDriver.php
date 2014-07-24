@@ -20,9 +20,7 @@
  */
 namespace oat\kvDynamoDb\model;
 
-//use common_persistence_KvDriver;
 use common_persistence_AdvKvDriver;
-//use common_persistence_KeyValuePersistence;
 use common_persistence_AdvKeyValuePersistence;
 use common_Logger;
 use common_Exception;
@@ -33,7 +31,6 @@ use Aws\DynamoDb\DynamoDbClient;
  *
  * @author Joel Bout <joel@taotesting.com>
  */
-//class DynamoDbDriver implements common_persistence_KvDriver
 class DynamoDbDriver implements common_persistence_AdvKvDriver
 {
 
@@ -67,26 +64,30 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
      */
     public function set($key, $value, $ttl = null)
     {
-        if (gettype($value) === 'integer') {
-            $valueType = 'N';
-        } else {
-            $valueType = 'B';
+        try {
+            if (gettype($value) === 'integer') {
+                $valueType = 'N';
+            } else {
+                $valueType = 'B';
+            }
+            $result = $this->client->updateItem(array(
+                'TableName' => $this->tableName,
+                'Key' => array(
+                    self::SIMPLE_KEY_NAME => array('S' => $key)
+                ),
+                'AttributeUpdates' => array(
+                    self::SIMPLE_VALUE_NAME => array(
+                        'Action' => 'PUT',
+                        'Value' => array($valueType => $value)
+                    )
+                ),
+                'ReturnConsumedCapacity' => 'TOTAL'
+            ));
+            common_Logger::i('SET: ' . $key);
+            return (bool)($result->getPath('ConsumedCapacity/CapacityUnits') > 0);
+        } catch (Exception $ex) {
+            return false;
         }
-        $result = $this->client->updateItem(array(
-            'TableName' => $this->tableName,
-            'Key' => array(
-                self::SIMPLE_KEY_NAME => array('S' => $key)
-            ),
-            'AttributeUpdates' => array(
-                self::SIMPLE_VALUE_NAME => array(
-                    'Action' => 'PUT',
-                    'Value' => array($valueType => $value)
-                )
-            ),
-            'ReturnConsumedCapacity' => 'TOTAL'
-        ));
-        common_Logger::i('SET: ' . $key);
-        return (bool)($result->getPath('ConsumedCapacity/CapacityUnits') > 0);
     }
 
     /**
@@ -194,16 +195,23 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
         }
 
         if (count($attributesToUpdate) > 0) {
-            $result = $this->client->updateItem(array(
-                'TableName' => $this->tableName,
-                'Key' => array(
-                    self::SIMPLE_KEY_NAME => array('S' => $key)
-                ),
-                'AttributeUpdates' => $attributesToUpdate,
-                'ReturnValues' => 'UPDATED_OLD'
-            ));
+            try {
+                $result = $this->client->updateItem(array(
+                    'TableName' => $this->tableName,
+                    'Key' => array(
+                        self::SIMPLE_KEY_NAME => array('S' => $key)
+                    ),
+                    'AttributeUpdates' => $attributesToUpdate,
+                    'ReturnValues' => 'UPDATED_OLD'
+                ));
+                return true;
+            } catch (Exception $ex) {
+                return false;
+            }
+
+        } else {
+            return false;
         }
-        return true;
     }
     
     /**
@@ -272,7 +280,11 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
             'ConsistentRead' => true,
             'AttributesToGet' => array( self::HPREFIX.$field )
         ));
-        return base64_decode($result['Item'][self::HPREFIX.$field]['B']);
+        if (isset($result['Item'][self::HPREFIX.$field])) {
+            return base64_decode($result['Item'][self::HPREFIX.$field]['B']);
+        } else {
+            return false;
+        }
     }
     
     /**
