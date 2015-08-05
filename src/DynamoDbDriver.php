@@ -18,7 +18,7 @@
  *               
  * 
  */
-namespace oat\kvDynamoDb\model;
+namespace oat\kvDynamoDb;
 
 use common_persistence_AdvKvDriver;
 use common_persistence_AdvKeyValuePersistence;

@@ -32,7 +32,7 @@ Persistence
 ===========
 ```php
 'serviceState' => array(
-    'driver' => 'oat\kvDynamoDb\model\DynamoDbDriver',
+    'driver' => 'oat\kvDynamoDb\DynamoDbDriver',
     'key' => '***',
     'secret' => '***',
     'region' => 'eu-west-1',
