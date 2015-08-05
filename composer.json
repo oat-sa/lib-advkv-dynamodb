@@ -1,5 +1,5 @@
 {
-	"name" : "oat/kvDynamoDb",
+	"name" : "oat/keyvalue-dynamodb",
 	"description" : "Key-Value DynamoD",
 	"type" : "library",
 	"authors" : [
