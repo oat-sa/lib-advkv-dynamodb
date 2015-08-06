@@ -23,7 +23,6 @@ namespace oat\kvDynamoDb;
 use common_persistence_AdvKvDriver;
 use common_persistence_AdvKeyValuePersistence;
 use common_Logger;
-use common_Exception;
 use Aws\DynamoDb\DynamoDbClient;
 use Aws\DynamoDb\Exception\ResourceNotFoundException;
 
@@ -168,7 +167,7 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
                 )
             ));
             common_Logger::i('DEL: ' . $key);
-        } catch (Exception $ex) {
+        } catch (\Exception $ex) {
             return false;
         }
         return true;
@@ -245,7 +244,7 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
                     'ReturnValues' => 'UPDATED_OLD'
                 ));
                 return true;
-            } catch (Exception $ex) {
+            } catch (\Exception $ex) {
                 return false;
             }
         } else {
@@ -369,7 +368,7 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
                 )
             ));
             return true;
-        } catch (Exception $ex) {
+        } catch (\Exception $ex) {
             return false;
         }
     }
