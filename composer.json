@@ -1,5 +1,5 @@
 {
-	"name" : "oat-sa/keyvalue-dynamodb",
+	"name" : "oat-sa/lib-advkv-dynamodb",
 	"description" : "Key-Value DynamoD",
 	"type" : "library",
 	"authors" : [
