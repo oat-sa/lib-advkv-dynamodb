@@ -53,11 +53,7 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
     {
         $connectConfig = isset($params['client'])
             ? $params['client']
-            : array(
-                'key' => $params['key'],
-                'secret' => $params['secret'],
-                'region' => $params['region']
-            );
+            : array_intersect_key($params, array_flip(array('key', 'secret', 'region')));
         $this->client = DynamoDbClient::factory($connectConfig);
         $this->tableName = $params['table'];
         return new common_persistence_AdvKeyValuePersistence($params, $this);
