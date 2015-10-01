@@ -33,9 +33,10 @@ Persistence
 ```php
 'serviceState' => array(
     'driver' => 'oat\kvDynamoDb\DynamoDbDriver',
-    'key' => '***',
-    'secret' => '***',
-    'region' => 'eu-west-1',
+    'client' => array(
+        'region' => 'eu-west-1',
+        'scheme' => 'http'
+    ),
     'table' => 'taoKeyValueStorage'
 ),
 ```
