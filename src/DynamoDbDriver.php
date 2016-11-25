@@ -14,7 +14,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  * 
- * Copyright (c) 2014 (original work) Open Assessment Technologies SA;
+ * Copyright (c) 2016 (original work) Open Assessment Technologies SA;
  *               
  * 
  */
@@ -24,7 +24,6 @@ use common_persistence_AdvKvDriver;
 use common_persistence_AdvKeyValuePersistence;
 use common_Logger;
 use Aws\DynamoDb\DynamoDbClient;
-use Aws\DynamoDb\Exception\ResourceNotFoundException;
 
 /**
  * A driver for Amazon DynamoDB
@@ -51,11 +50,27 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
      */
     function connect($key, array $params)
     {
-        $connectConfig = isset($params['client'])
-            ? $params['client']
-            : array_intersect_key($params, array_flip(array('key', 'secret', 'region')));
-        $this->client = DynamoDbClient::factory($connectConfig);
+        if (! isset($params['client'])) {
+            throw new \common_Exception('Unable to load driver for dynamodb, config key "client" is missing.');
+        }
+
+        if (! isset($params['table'])) {
+            throw new \common_Exception('Unable to load driver for dynamodb, config key "table" is missing.');
+        }
+
+        $client = $params['client'];
+        if (is_array($client)) {
+            $this->client = new DynamoDbClient($client);
+        } elseif (is_a($client, DynamoDbClient::class)) {
+            $this->client = $client;
+        } elseif (class_exists('\oat\awsTools\AwsClient') && is_a($client, '\oat\awsTools\AwsClient')) {
+            $this->client = new DynamoDbClient($client->getOptions());
+        } else {
+            throw new \common_Exception('Unable to load driver for dynamodb, client configuration is not correctly set.');
+        }
+
         $this->tableName = $params['table'];
+
         return new common_persistence_AdvKeyValuePersistence($params, $this);
     }
 
