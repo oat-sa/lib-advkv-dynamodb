@@ -24,6 +24,8 @@ use common_persistence_AdvKvDriver;
 use common_persistence_AdvKeyValuePersistence;
 use common_Logger;
 use Aws\DynamoDb\DynamoDbClient;
+use oat\awsTools\AwsDynamoClientFactory;
+use oat\oatbox\service\ServiceManager;
 
 /**
  * A driver for Amazon DynamoDB
@@ -44,34 +46,33 @@ class DynamoDbDriver implements common_persistence_AdvKvDriver
     const HPREFIX = 'hPrfx_', SIMPLE_KEY_NAME = 'key', SIMPLE_VALUE_NAME = 'value';
 
     /**
-     * (non-PHPdoc)
-     *
      * @see common_persistence_Driver::connect()
+     *
+     * @param string $key
+     * @param array $params
+     * @return common_persistence_AdvKeyValuePersistence
      */
     function connect($key, array $params)
     {
-        if (! isset($params['client'])) {
-            throw new \common_Exception('Unable to load driver for dynamodb, config key "client" is missing.');
-        }
+        $dynamoClientFactory = $this->getDynamoFactory($params);
 
-        if (! isset($params['table'])) {
-            throw new \common_Exception('Unable to load driver for dynamodb, config key "table" is missing.');
-        }
-
-        $client = $params['client'];
-        if (is_array($client)) {
-            $this->client = new DynamoDbClient($client);
-        } elseif (is_a($client, DynamoDbClient::class)) {
-            $this->client = $client;
-        } elseif (class_exists('\oat\awsTools\AwsClient') && is_a($client, '\oat\awsTools\AwsClient')) {
-            $this->client = new DynamoDbClient($client->getOptions());
-        } else {
-            throw new \common_Exception('Unable to load driver for dynamodb, client configuration is not correctly set.');
-        }
-
-        $this->tableName = $params['table'];
+        $this->tableName = $dynamoClientFactory->getTableName();
+        $this->client    = $dynamoClientFactory->getClient();
 
         return new common_persistence_AdvKeyValuePersistence($params, $this);
+    }
+
+    /**
+     * Get the service to factory AwsDynamoClient
+     *
+     * @param array $options
+     * @return AwsDynamoClientFactory
+     */
+    protected function getDynamoFactory(array $options)
+    {
+        $dynamoClientFactory = new AwsDynamoClientFactory($options);
+        ServiceManager::getServiceManager()->propagate($dynamoClientFactory);
+        return $dynamoClientFactory;
     }
 
     /**
